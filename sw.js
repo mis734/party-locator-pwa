@@ -1,6 +1,6 @@
 // Caches only the app shell (icon, page) so the app opens fast.
 // Party data always comes live from Google Sheets.
-const CACHE = 'party-locator-v1';
+const CACHE = 'party-locator-v2';
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'];
 
 self.addEventListener('install', e => {

@@ -23,11 +23,36 @@
   #offline { display: none; position: fixed; inset: 0; align-items: center; justify-content: center;
              text-align: center; padding: 24px; background: #f2f4f7; color: #1d2433;
              font-family: system-ui, sans-serif; }
+  #install { display: none; position: fixed; inset: 0; z-index: 50; background: #0b3d91; color: #fff;
+             font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+             flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 28px; }
+  #install.show { display: flex; }
+  #install img { width: 110px; height: 110px; border-radius: 26px; box-shadow: 0 8px 24px rgba(0,0,0,.3); }
+  #install h1 { margin: 18px 0 4px; font-size: 26px; }
+  #install .sub { margin: 0 0 26px; opacity: .85; font-size: 15px; }
+  #installBtn { width: 100%; max-width: 320px; padding: 16px; font-size: 18px; font-weight: 700; border: 0;
+                border-radius: 14px; background: #fff; color: #0b3d91; cursor: pointer; }
+  #installBtn:disabled { opacity: .6; }
+  #howto { display: none; max-width: 340px; background: rgba(255,255,255,.12); border-radius: 14px;
+           padding: 16px 18px; text-align: left; font-size: 15px; line-height: 1.6; }
+  #howto b { color: #ffd76a; }
+  #skip { margin-top: 22px; background: none; border: 0; color: #fff; opacity: .75; font-size: 14px;
+          text-decoration: underline; cursor: pointer; }
+  #done { display: none; font-size: 17px; max-width: 320px; }
 </style>
 </head>
 <body>
   <div id="splash"><img src="icon-192.png" alt=""><p>Loading Party Locator…</p></div>
   <div id="offline"><div><h2>No internet</h2><p>Connect to mobile data or Wi-Fi and reopen the app.</p></div></div>
+  <div id="install">
+    <img src="icon-512.png" alt="">
+    <h1>Party Locator</h1>
+    <p class="sub">Jain Wire – find any party's location</p>
+    <button id="installBtn" disabled>Preparing…</button>
+    <div id="howto"></div>
+    <div id="done">✅ Installed! Open <b>Party Locator</b> from your home screen.</div>
+    <button id="skip">Continue without installing</button>
+  </div>
   <iframe id="app" title="Party Locator" allow="geolocation"></iframe>
 
 <script>
@@ -51,6 +76,62 @@
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => navigator.serviceWorker.register('sw.js'));
   }
+
+  // ---------- First-time install screen ----------
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const store = { get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } },
+                  set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} } };
+  const box = document.getElementById('install');
+  const btn = document.getElementById('installBtn');
+  const howto = document.getElementById('howto');
+  const done = document.getElementById('done');
+  let deferredPrompt = null;
+
+  function showHowTo(html) { btn.style.display = 'none'; howto.innerHTML = html; howto.style.display = 'block'; }
+  function closeInstall() { box.classList.remove('show'); store.set('installSkipped', '1'); }
+
+  if (!isStandalone && !store.get('installSkipped')) {
+    box.classList.add('show');
+    if (isIOS) {
+      showHowTo('To install on iPhone:<br>1. Tap the <b>Share</b> button ⬆ at the bottom of Safari<br>' +
+                '2. Scroll and tap <b>Add to Home Screen</b><br>3. Tap <b>Add</b>');
+    } else {
+      // Wait for Chrome to say the app can be installed
+      setTimeout(() => {
+        if (!deferredPrompt) showHowTo('To install:<br>1. Tap the <b>⋮</b> menu (top right of Chrome)<br>' +
+                                       '2. Tap <b>Install app</b> or <b>Add to Home screen</b><br>3. Tap <b>Install</b>');
+      }, 4000);
+    }
+  }
+
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    deferredPrompt = e;
+    howto.style.display = 'none';
+    btn.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = '⬇ Install App';
+  });
+
+  btn.addEventListener('click', async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const choice = await deferredPrompt.userChoice;
+    deferredPrompt = null;
+    if (choice.outcome !== 'accepted') { btn.disabled = false; }
+    else { btn.disabled = true; btn.textContent = 'Installing…'; }
+  });
+
+  window.addEventListener('appinstalled', () => {
+    store.set('installSkipped', '1');
+    btn.style.display = 'none'; howto.style.display = 'none';
+    done.style.display = 'block';
+    document.getElementById('skip').textContent = 'Continue here';
+  });
+
+  document.getElementById('skip').addEventListener('click', closeInstall);
 </script>
 </body>
 </html>
