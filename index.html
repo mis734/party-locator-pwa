@@ -132,6 +132,20 @@
   });
 
   document.getElementById('skip').addEventListener('click', closeInstall);
+
+  // ---------- Location bridge: the Apps Script page asks, this top page answers ----------
+  window.addEventListener('message', e => {
+    const d = e.data || {};
+    if (d.type !== 'pl-getgps' || !e.source) return;
+    if (!/(^https:\/\/[\w.-]+\.googleusercontent\.com$)|(^https:\/\/script\.google\.com$)/.test(e.origin)) return;
+    const reply = m => e.source.postMessage(Object.assign({ type: 'pl-gps', id: d.id }, m), e.origin);
+    reply({ ack: true });
+    if (!navigator.geolocation) return reply({ ok: false, code: 0 });
+    navigator.geolocation.getCurrentPosition(
+      p => reply({ ok: true, lat: p.coords.latitude, lng: p.coords.longitude, acc: Math.round(p.coords.accuracy) }),
+      err => reply({ ok: false, code: err.code }),
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
+  });
 </script>
 </body>
 </html>
